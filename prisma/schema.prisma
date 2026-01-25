@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+/**
+ * Hiragana characters
+ * Example: あ, い, う
+ */
+model Hiragana {
+  id          String  @id @default(uuid())
+  symbol      String @unique // あ
+  romaji      String // a
+  explanation String // usage explanation
+  example     String? // あめ
+
+  imageUrl String? // Cloudinary URL   
+  audioUrl String? // /audio/hiragana/a.mp3
+  isRead   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+/**
+ * Katakana characters
+ * Example: ア, イ, ウ
+ */
+model Katakana {
+  id          String  @id @default(uuid())
+  symbol      String @unique// ア
+  romaji      String // a
+  explanation String // used for foreign words
+  example     String? // アイス
+
+  imageUrl String? // Cloudinary URL (optional)
+  audioUrl String? // /audio/katakana/a.mp3 (optional)
+  isRead   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id         String         @id @default(uuid())
+  email      String         @unique
+  password   String         // hashed password
+  role       Role           @default(USER)
+
+  progresses UserProgress[] // relation to UserProgress
+
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+
+enum Role {
+  ADMIN
+  USER
+}
+
+/// Tracks user progress for kana, kanji, vocab
+model UserProgress {
+  id         String   @id @default(uuid())
+  userId     String
+  itemId     String // id of Hiragana, Katakana, Kanji, or Vocab
+  itemType   ProgressType
+  learned    Boolean @default(false)
+  quizScore  Int?    // optional, for quiz results
+  updatedAt  DateTime @updatedAt
+
+  user       User    @relation(fields: [userId], references: [id])
+
+  @@unique([userId, itemId, itemType])
+}
+
+enum ProgressType {
+  HIRAGANA
+  KATAKANA
+  KANJI
+  VOCAB
+}
+
+/**
+ * Vocabulary words (JLPT based)
+ */
