@@ -3,77 +3,82 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = "postgresql://neondb_owner:npg_kLqCJ2zcZhP5@ep-rough-base-a1cj9996-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 }
 
-/**
- * Hiragana characters
- * Example: あ, い, う
- */
+/// *
+///  * Hiragana characters
+///  * Example: あ, い, う
 model Hiragana {
-  id          String  @id @default(uuid())
-  symbol      String @unique // あ
-  romaji      String // a
-  explanation String // usage explanation
-  example     String? // あめ
-
-  imageUrl String? // Cloudinary URL   
-  audioUrl String? // /audio/hiragana/a.mp3
-  isRead   Boolean @default(false)
-
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  symbol      String   @unique
+  romaji      String
+  explanation String
+  example     String?
+  imageUrl    String?
+  audioUrl    String?
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }
 
-/**
- * Katakana characters
- * Example: ア, イ, ウ
- */
+/// *
+///  * Katakana characters
+///  * Example: ア, イ, ウ
 model Katakana {
-  id          String  @id @default(uuid())
-  symbol      String @unique// ア
-  romaji      String // a
-  explanation String // used for foreign words
-  example     String? // アイス
-
-  imageUrl String? // Cloudinary URL (optional)
-  audioUrl String? // /audio/katakana/a.mp3 (optional)
-  isRead   Boolean @default(false)
-
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  symbol      String   @unique
+  romaji      String
+  explanation String
+  example     String?
+  imageUrl    String?
+  audioUrl    String?
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }
 
 model User {
   id         String         @id @default(uuid())
   email      String         @unique
-  password   String         // hashed password
+  password   String
   role       Role           @default(USER)
-
-  progresses UserProgress[] // relation to UserProgress
-
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
-}
-
-
-enum Role {
-  ADMIN
-  USER
+  progresses UserProgress[]
 }
 
 /// Tracks user progress for kana, kanji, vocab
 model UserProgress {
-  id         String   @id @default(uuid())
+  id         String       @id @default(uuid())
   userId     String
-  itemId     String // id of Hiragana, Katakana, Kanji, or Vocab
+  itemId     String
   itemType   ProgressType
-  learned    Boolean @default(false)
-  quizScore  Int?    // optional, for quiz results
-  updatedAt  DateTime @updatedAt
-
-  user       User    @relation(fields: [userId], references: [id])
+  learned    Boolean      @default(false)
+  bookmarked Boolean      @default(false)
+  quizScore  Int?
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id])
 
   @@unique([userId, itemId, itemType])
+}
+
+/// *
+///  * Vocabulary words (JLPT based)
+model Vocabulary {
+  id        String   @id @default(uuid())
+  word      String
+  meaning   String
+  furigana  String?
+  romaji    String?
+  level     Int
+  createdAt DateTime @default(now())
+
+  @@unique([word, level])
+}
+
+enum Role {
+  ADMIN
+  USER
 }
 
 enum ProgressType {
@@ -82,7 +87,3 @@ enum ProgressType {
   KANJI
   VOCAB
 }
-
-/**
- * Vocabulary words (JLPT based)
- */
