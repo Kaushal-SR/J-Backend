@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -7,6 +8,7 @@ import { HiraganaModule } from './hiragana/hiragana.module';
 import { AuthModule } from './auth/auth.module';
 import { KatakanaModule } from './katakana/katakana.module';
 import { UserProgressModule } from './user-progress/user-progress.module';
+import { VocabularyController } from './vocabulary.controller';
 
 @Module({
   imports: [
@@ -19,7 +21,7 @@ import { UserProgressModule } from './user-progress/user-progress.module';
     KatakanaModule,
     UserProgressModule
   ],
-  controllers: [AppController],
+  controllers: [AppController, VocabularyController],
   providers: [AppService],
 })
 export class AppModule {}
