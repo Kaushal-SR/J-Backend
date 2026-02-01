@@ -1,15 +1,62 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards, Body, Patch, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PrismaService } from './prisma/prisma.service';
 
 @Controller('vocabulary')
-@UseGuards(JwtAuthGuard)
 export class VocabularyController {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * GET /vocabulary/by-id?id=...
+   * Returns a vocab by its id (for admin page history navigation)
+   */
+  @Get('by-id')
+  async getVocabById(@Query('id') id: string) {
+    if (!id) throw new BadRequestException('Missing id');
+    const vocab = await this.prisma.vocabulary.findUnique({ where: { id } });
+    if (!vocab) throw new BadRequestException('Vocab not found');
+    return vocab;
+  }
+
+  /**
+   * PATCH /vocabulary/admin-one: update vocab by id (admin only)
+   */
+  @Patch('admin-one')
+  @UseGuards(JwtAuthGuard)
+  async updateOneVocabAdmin(@Body() body: any) {
+    if (!body.id) {
+      throw new BadRequestException('Missing vocab id');
+    }
+    // Only allow updating fields that exist in the model (except id, createdAt)
+    const allowedFields = [
+      'kanji', 'kana', 'romaji', 'meaning', 'level', 'jlpt', 'pos', 'note', 'example', 'audio', 'image', 'tags', 'description',
+    ];
+    const updateData: Record<string, any> = {};
+    for (const key of allowedFields) {
+      if (body[key] !== undefined) {
+        updateData[key] = body[key];
+      }
+    }
+    if (Object.keys(updateData).length === 0) {
+      throw new BadRequestException('No updatable fields provided');
+    }
+    // Ensure level is a number if present
+    if (updateData.level !== undefined) {
+      updateData.level = Number(updateData.level);
+    }
+    const updated = await this.prisma.vocabulary.update({
+      where: { id: body.id },
+      data: updateData,
+    });
+    return updated;
+  }
+
   /**
    * GET /vocabulary/all?level=5
    * Returns all vocab for the given level (for session queue)
    */
   @Get('all')
+  @UseGuards(JwtAuthGuard)
   async getAllVocabulary(@Query('level') level: string) {
     const levelNum = Number(level);
     return this.prisma.vocabulary.findMany({
@@ -17,7 +64,32 @@ export class VocabularyController {
       orderBy: { id: 'asc' },
     });
   }
-  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * GET /vocabulary/admin-one?attr=word&value=xxx&order=asc
+   * Returns one vocab matching filter and order (for admin page, admin only)
+   */
+  @Get('admin-one')
+  @UseGuards(JwtAuthGuard)
+  async getOneVocabAdmin(
+    @Query('attr') attr: string,
+    @Query('order') order: string,
+    @Query('cursor') cursor?: string,
+    @Query('level') level?: string
+  ) {
+    let where: any = {};
+    if (level !== undefined) {
+      where.level = Number(level);
+    }
+    if (cursor !== undefined) {
+      where[attr] = order === 'desc' ? { lt: cursor } : { gt: cursor };
+    }
+    const vocab = await this.prisma.vocabulary.findFirst({
+      where,
+      orderBy: { [attr]: order === 'desc' ? 'desc' : 'asc' },
+    });
+    return vocab;
+  }
 
   /**
    * GET /vocabulary/stats?level=5
@@ -45,6 +117,7 @@ export class VocabularyController {
     });
     return { total, learned };
   }
+
   /**
    * GET /vocabulary/next?level=5&mode=normal&exclude=...
    * Returns one vocab for the given level, not in exclude list, random or ordered, and not learned by the user
